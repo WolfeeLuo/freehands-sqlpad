@@ -12,7 +12,6 @@ async function up(queryInterface, config, appLog, sequelizeDb) {
     // alter id column from integer to string
     await queryInterface.changeColumn('service_tokens', 'id', {
       type: Sequelize.STRING,
-      primaryKey: true,
       defaultValue: Sequelize.UUIDV4,
     });
   } catch (error) {
