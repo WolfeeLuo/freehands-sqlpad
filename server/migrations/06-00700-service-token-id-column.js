@@ -8,13 +8,19 @@ const Sequelize = require('sequelize');
  */
 // eslint-disable-next-line no-unused-vars
 async function up(queryInterface, config, appLog, sequelizeDb) {
-  if (config.Sequelize.dialect === 'postgres') {
-    try{
-      const query = "ALTER TABLE \"service_tokens\" ALTER COLUMN \"id\" TYPE VARCHAR(255);"
-      await queryInterface.sequelize.query(query)
-    }catch(error){
-      appLog.error(error, `Error alter id column from integer to string under postgres`);
+  if (config.all.backendDatabaseUri.indexOf('postgres') >= 0) {
+    try {
+      const query =
+        'ALTER TABLE "service_tokens" ALTER COLUMN "id" TYPE VARCHAR(255);';
+      await queryInterface.sequelize.query(query);
+    } catch (error) {
+      appLog.error(
+        error,
+        `Error alter id column from integer to string under postgres`
+      );
     }
+  } else if (config.all.backendDatabaseUri.indexOf('mssql') >= 0) {
+    appLog.info(`break change for mssql!`);
   } else {
     try {
       // alter id column from integer to string
