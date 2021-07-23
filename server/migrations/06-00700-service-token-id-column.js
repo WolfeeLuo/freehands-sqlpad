@@ -10,7 +10,7 @@ const Sequelize = require('sequelize');
 async function up(queryInterface, config, appLog, sequelizeDb) {
   if (config.Sequelize.dialect === 'postgres') {
     try{
-      const query = "ALTER TABLE \"service_tokens\" ALTER COLUMN \"id\" TYPE VARCHAR(255)"
+      const query = "ALTER TABLE \"service_tokens\" ALTER COLUMN \"id\" TYPE VARCHAR(255);"
       await queryInterface.sequelize.query(query)
     }catch(error){
       appLog.error(error, `Error alter id column from integer to string under postgres`);
