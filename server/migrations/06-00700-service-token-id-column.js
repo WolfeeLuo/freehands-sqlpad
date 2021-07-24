@@ -20,12 +20,32 @@ async function up(queryInterface, config, appLog, sequelizeDb) {
       );
     }
   } else if (config.all.backendDatabaseUri.indexOf('mssql') >= 0) {
-    appLog.info(`break change for mssql!`);
+    try {
+      // drop default value constraint
+      const query =
+        'SELECT name FROM SYS.DEFAULT_CONSTRAINTS ' +
+        "WHERE PARENT_OBJECT_ID = OBJECT_ID('service_tokens', 'U') " +
+        "AND PARENT_COLUMN_ID = (SELECT column_id FROM sys.columns WHERE NAME = ('id') " +
+        "AND object_id = OBJECT_ID('service_tokens', 'U'));";
+      await queryInterface.sequelize.query(query);
+      // change column
+      await queryInterface.changeColumn('service_tokens', 'id', {
+        type: Sequelize.STRING,
+        primaryKey: true,
+        defaultValue: Sequelize.UUIDV4,
+      });
+    } catch (error) {
+      appLog.error(
+        error,
+        `Error alter id column from integer to string under mssql`
+      );
+    }
   } else {
     try {
       // alter id column from integer to string
       await queryInterface.changeColumn('service_tokens', 'id', {
         type: Sequelize.STRING,
+        primaryKey: true,
         defaultValue: Sequelize.UUIDV4,
       });
     } catch (error) {
