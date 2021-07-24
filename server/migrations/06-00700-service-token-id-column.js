@@ -12,7 +12,7 @@ async function up(queryInterface, config, appLog, sequelizeDb) {
     try {
       const query =
         'ALTER TABLE "service_tokens" ALTER COLUMN "id" TYPE VARCHAR(255);';
-      await queryInterface.sequelize.query(query);
+      await sequelizeDb.query(query);
     } catch (error) {
       appLog.error(
         error,
@@ -21,13 +21,18 @@ async function up(queryInterface, config, appLog, sequelizeDb) {
     }
   } else if (config.all.backendDatabaseUri.indexOf('mssql') >= 0) {
     try {
-      // drop default value constraint
+      // find default value constraint
       const query =
         'SELECT name FROM SYS.DEFAULT_CONSTRAINTS ' +
         "WHERE PARENT_OBJECT_ID = OBJECT_ID('service_tokens', 'U') " +
         "AND PARENT_COLUMN_ID = (SELECT column_id FROM sys.columns WHERE NAME = ('id') " +
         "AND object_id = OBJECT_ID('service_tokens', 'U'));";
-      await queryInterface.sequelize.query(query);
+      const devaultValueConstraint = await sequelizeDb.query(query, {
+        type: sequelizeDb.QueryTypes.SELECT,
+      });
+      // drop default value constraint
+      const dropQuery = `ALTER TABLE service_tokens DROP CONSTRAINT ${devaultValueConstraint};`;
+      await sequelizeDb.query(dropQuery);
       // change column
       await queryInterface.changeColumn('service_tokens', 'id', {
         type: Sequelize.STRING,
