@@ -1,4 +1,5 @@
 const Sequelize = require('sequelize');
+const url = require('url');
 
 /**
  * @param {import('sequelize').QueryInterface} queryInterface
@@ -8,7 +9,12 @@ const Sequelize = require('sequelize');
  */
 // eslint-disable-next-line no-unused-vars
 async function up(queryInterface, config, appLog, sequelizeDb) {
-  if (config.all.backendDatabaseUri.indexOf('postgres') >= 0) {
+  const backendDatabaseUri = config.get('backendDatabaseUri');
+  const urlParts = url.parse(backendDatabaseUri);
+  const dialect = backendDatabaseUri
+    ? urlParts.protocol.replace(/:$/, '')
+    : 'sqlite';
+  if (dialect === 'postgres') {
     try {
       const query =
         'ALTER TABLE "service_tokens" ALTER COLUMN "id" TYPE VARCHAR(255);';
@@ -19,24 +25,29 @@ async function up(queryInterface, config, appLog, sequelizeDb) {
         `Error alter id column from integer to string under postgres`
       );
     }
-  } else if (config.all.backendDatabaseUri.indexOf('mssql') >= 0) {
+  } else if (dialect === 'mssql') {
     try {
-      // find default value constraint
+      // find primary key constraint
       const query =
-        'SELECT name FROM SYS.DEFAULT_CONSTRAINTS ' +
-        "WHERE PARENT_OBJECT_ID = OBJECT_ID('service_tokens', 'U') " +
-        "AND PARENT_COLUMN_ID = (SELECT column_id FROM sys.columns WHERE NAME = ('id') " +
-        "AND object_id = OBJECT_ID('service_tokens', 'U'));";
-      const devaultValueConstraint = await sequelizeDb.query(query, {
+        'select name  FROM SYS.OBJECTS ' +
+        "WHERE TYPE_DESC = 'PRIMARY_KEY_CONSTRAINT' " +
+        "and PARENT_OBJECT_ID = OBJECT_ID('service_tokens', 'U');";
+      const PKConstraint = await sequelizeDb.query(query, {
         type: sequelizeDb.QueryTypes.SELECT,
       });
-      // drop default value constraint
-      const dropQuery = `ALTER TABLE service_tokens DROP CONSTRAINT ${devaultValueConstraint};`;
-      await sequelizeDb.query(dropQuery);
-      // change column
-      await queryInterface.changeColumn('service_tokens', 'id', {
+      // drop primary key constraint if exists
+      if (PKConstraint.length > 0) {
+        const dropPKQuery = `ALTER TABLE service_tokens DROP CONSTRAINT ${PKConstraint[0].name};`;
+        await sequelizeDb.query(dropPKQuery);
+      }
+      // drop id column because identification column must be int-like type when chagne column under mssql
+      const dropIdQuery = 'ALTER TABLE service_tokens DROP COLUMN id';
+      await sequelizeDb.query(dropIdQuery);
+      // add id column
+      await queryInterface.addColumn('service_tokens', 'id', {
         type: Sequelize.STRING,
         defaultValue: Sequelize.UUIDV4,
+        primaryKey: true,
       });
     } catch (error) {
       appLog.error(
